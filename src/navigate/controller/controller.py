@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024  The University of Texas Southwestern Medical Center.
+# Copyright (c) 2021-2025  The University of Texas Southwestern Medical Center.
 # All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted for academic and research use only
@@ -39,7 +39,6 @@ import threading
 import sys
 import os
 import time
-import platform
 
 # Third Party Imports
 
@@ -64,6 +63,7 @@ from navigate.controller.sub_controllers import (
     MenuController,
     PluginsController,
     HistogramController,
+    GLFrameViewController
     # MicroscopePopupController,
     # AdaptiveOpticsPopupController,
 )
@@ -272,6 +272,11 @@ class Controller:
         #: MultiPositionController: Multi-Position Tab Sub-Controller.
         self.multiposition_tab_controller = MultiPositionController(
             self.view.settings.multiposition_tab.multipoint_list, self
+        )
+
+        # GLFrameViewController: Camera view using GLFW and OpenGL
+        self.frame_view_controller = GLFrameViewController(
+            self.view.camera_waveform.camera_tab, self
         )
 
         #: CameraViewController: Camera View Tab Sub-Controller.
@@ -1204,12 +1209,18 @@ class Controller:
             self.camera_view_controller.try_to_display_image(
                 image=self.data_buffer[image_id]
             )
-            self.mip_setting_controller.try_to_display_image(
-                image=self.data_buffer[image_id]
-            )
-            self.histogram_controller.populate_histogram(
-                image=self.data_buffer[image_id]
-            )
+            # self.mip_setting_controller.try_to_display_image(
+            #     image=self.data_buffer[image_id]
+            # )
+            # self.histogram_controller.populate_histogram(
+            #     image=self.data_buffer[image_id]
+            # )
+            
+            # OpenGL display
+            if image_id == 0:
+                self.frame_view_controller.reset()
+            self.frame_view_controller.try_to_display_image(self.data_buffer[image_id])
+
             images_received += 1
 
             # Update progress bar.

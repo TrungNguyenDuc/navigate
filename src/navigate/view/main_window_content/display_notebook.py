@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024  The University of Texas Southwestern Medical Center.
+# Copyright (c) 2021-2025  The University of Texas Southwestern Medical Center.
 # All rights reserved.
 
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 
 # Standard Library Imports
 import tkinter as tk
-from tkinter import ttk, Grid
+from tkinter import ttk
 import logging
 from typing import Iterable, Dict, Any
 
@@ -303,7 +303,7 @@ class RenderFrame(ttk.Labelframe):
 
         #: ttk.Combobox: The combobox that holds the live display functionality.
         self.live = ttk.Combobox(self, textvariable=self.live_var, width=6)
-        self.live["values"] = ("Live", "Slice")
+        self.live["values"] = ("Live", "Slice", "OpenGL")
         self.live.set("Live")
         self.live.grid(row=0, column=0, sticky=tk.W)
         self.live.state(["!disabled", "readonly"])
@@ -589,11 +589,8 @@ class IntensityFrame(ttk.Labelframe, CommonMethods):
             input_class=ttk.Checkbutton,
             input_var=self.transpose,
         )
-        self.inputs[self.trans].grid(
-            row=row, column=0, sticky=tk.W, pady=3
-        )
+        self.inputs[self.trans].grid(row=row, column=0, sticky=tk.W, pady=3)
         row += 1
-
 
         #: tk.BooleanVar: The variable that holds the autoscale flag.
         self.autoscale = tk.BooleanVar()
@@ -612,9 +609,7 @@ class IntensityFrame(ttk.Labelframe, CommonMethods):
             input_class=ttk.Checkbutton,
             input_var=self.autoscale,
         )
-        self.inputs[self.auto].grid(
-            row=row, column=0, sticky=tk.W, pady=3
-        )
+        self.inputs[self.auto].grid(row=row, column=0, sticky=tk.W, pady=3)
         row += 1
 
         # Max and Min Counts

@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024  The University of Texas Southwestern Medical Center.
+# Copyright (c) 2021-2025  The University of Texas Southwestern Medical Center.
 # All rights reserved.
 
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ class NIShutter(ShutterBase):
         self,
         microscope_name: str,
         device_connection: Any,
-        configuration: Dict[str, Any],
+        configuration: dict[str, Any],
         *args: Optional[Any],
         **kwargs: Optional[Any],
     ) -> None:
@@ -103,8 +103,7 @@ class NIShutter(ShutterBase):
             except Exception:
                 logger.exception(f"Error stopping task: {traceback.format_exc()}")
 
-
-    def open_shutter(self):
+    def open_shutter(self) -> None:
         """Open the shutter"""
         #: bool: Shutter state
         try:
@@ -125,7 +124,7 @@ class NIShutter(ShutterBase):
             )
             logger.debug(e)
 
-    def close_shutter(self):
+    def close_shutter(self) -> None:
         """Close the shutter"""
         try:
             if self.shutter_state:
@@ -156,7 +155,7 @@ class NIShutter(ShutterBase):
         self.shutter_state = not self.shutter_state
 
     @property
-    def state(self):
+    def state(self) -> bool:
         """Return the state of both shutters
 
         Returns

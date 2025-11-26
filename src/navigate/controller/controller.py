@@ -233,6 +233,16 @@ class Controller:
             log_queue=log_queue,
         )
 
+        # self.model = Model(
+        #     args,
+        #     self.configuration,
+        #     event_queue=self.event_queue,
+        #     log_queue=log_queue
+        # )
+
+        # self.model.load_cameras()
+
+
         #: mp.Pipe: Pipe for sending images from model to view.
         self.show_img_pipe = self.model.create_pipe("show_img_pipe")
 
@@ -358,6 +368,7 @@ class Controller:
         self.window_height = 0
         self.view.root.after(5000, self.enable_resize)
         self.view.root.bind("<Configure>", self.resize)
+
 
     def update_buffer(self):
         """Update the buffer size according to the camera

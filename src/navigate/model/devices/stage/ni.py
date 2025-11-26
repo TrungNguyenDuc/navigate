@@ -252,6 +252,8 @@ class NIStage(StageBase, NIDevice):
             volts = self.galvo_min_voltage
 
         try:
+            logger.debug(f"Set Galvo Stage Voltage: {volts}")
+            print(f"Set Galvo Stage voltage: {volts}")
             self.ao_task.write(volts, auto_start=True)
         except Exception as e:
             logger.debug(f"Error moving {axis} to {axis_abs} volts: {volts}")

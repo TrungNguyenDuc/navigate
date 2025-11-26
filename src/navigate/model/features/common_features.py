@@ -1159,9 +1159,10 @@ class ZStackAcquisition:
 
         #: ImageWriter: An image writer object for saving z-stack images.
         self.image_writer = None
-        if saving_flag:
-            self.image_writer = ImageWriter(model, sub_dir=saving_dir)
-
+        self.saving_flag = saving_flag
+        self.saving_dir = saving_dir
+        self.initialized_time = 0
+        
         self.prepare_next_channel = PrepareNextChannel(model)
 
         #: dict: A dictionary defining the configuration for the z-stack acquisition
@@ -1347,11 +1348,13 @@ class ZStackAcquisition:
             )
 
             # calculate first z, f position
-            self.current_z_position = (
-                self.start_z_position + self.current_position[self.primary_z_axis]
+            self.current_z_position = round(
+                self.start_z_position + self.current_position[self.primary_z_axis],
+                3
             )
-            self.current_focus_position = (
-                self.start_focus + self.current_position[self.primary_f_axis]
+            self.current_focus_position = round(
+                self.start_focus + self.current_position[self.primary_f_axis],
+                3
             )
             if self.defocus is not None:
                 self.current_focus_position += self.defocus[
@@ -1413,6 +1416,9 @@ class ZStackAcquisition:
                 self.model.pause_data_thread()
                 logger.info("Data thread paused.")
 
+            self.current_z_position = round(self.current_z_position, 3)
+            self.current_focus_position = round(self.current_focus_position, 3)
+
             stack_pos = [
                 (f"{self.primary_z_axis}_abs", self.current_z_position),
                 (f"{self.primary_f_axis}_abs", self.current_focus_position),
@@ -1440,6 +1446,7 @@ class ZStackAcquisition:
             self.should_pause_data_thread = False
 
         self.model.mark_saving_flags([self.model.frame_id])
+        self.model.logger.debug(f"*** mark saving flag to frame {self.model.frame_id}")
 
         return True
 
@@ -1547,9 +1554,14 @@ class ZStackAcquisition:
         This method initializes data-related parameters before data acquisition,
         including the count of received and expected frames.
         """
-
+        self.initialized_time += 1
         self.received_frames = 0
         self.total_frames = self.channels * self.number_z_steps * len(self.positions)
+
+        if self.saving_flag:
+            self.image_writer = ImageWriter(self.model, sub_dir=f"{self.saving_dir}_{self.initialized_time}")
+            logger.debug(f"***** Created a new image saver: {self.model.active_microscope_name}!!!!")
+
 
     def in_data_func(self, frame_ids: list) -> None:
         """Handle incoming data frames during data acquisition.
@@ -1565,7 +1577,7 @@ class ZStackAcquisition:
         """
         self.received_frames += len(frame_ids)
         if self.image_writer is not None:
-            self.image_writer.save_image(frame_ids)
+            self.image_writer.save_image([i-1 for i in frame_ids])
 
     def end_data_func(self) -> bool:
         """Check if all expected data frames have been received.
@@ -1579,7 +1591,6 @@ class ZStackAcquisition:
             A boolean value indicating whether all expected data frames have been
             received.
         """
-
         return self.received_frames >= self.total_frames
 
     def cleanup_data_func(self) -> None:

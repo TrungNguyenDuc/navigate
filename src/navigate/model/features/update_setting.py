@@ -38,6 +38,7 @@ import time
 # Third party imports
 
 # Local application imports
+from navigate.model.concurrency.concurrency_tools import SharedNDArray
 
 # Logger Setup
 p = __name__.split(".")[1]
@@ -98,6 +99,11 @@ class ChangeResolution:
         #: str: The zoom value to set for the microscope.
         self.zoom_value = zoom_value
 
+        self.data_buffer = None
+        self.pre_data_buffer = None
+        self.width = 0
+        self.height = 0
+
     def signal_func(self):
         """Perform actions to change the resolution mode and update the active
          microscope.
@@ -132,22 +138,39 @@ class ChangeResolution:
             # logger.exception(error_message) doesn't work
             print(error_message)
             raise Exception(error_message)
-        # check the image size
-        camera_config = self.model.configuration["experiment"]["CameraParameters"]
-        if (
-            camera_config[self.resolution_mode]["img_x_pixels"]
-            != camera_config[self.model.active_microscope_name]["img_x_pixels"]
-            or camera_config[self.resolution_mode]["img_y_pixels"]
-            != camera_config[self.model.active_microscope_name]["img_y_pixels"]
-        ):
-            error_message = f"Can't change resolution: Image sizes are different!"
-            # logger.exception(error_message) doesn't work
-            print(error_message)
-            raise Exception(error_message)
+        
         # pause data thread
         self.model.pause_data_thread()
         # end active microscope
         self.model.active_microscope.end_acquisition()
+
+        if self.pre_data_buffer is None:
+            self.pre_data_buffer = self.model.data_buffer
+
+        # check the image size
+        camera_config = self.model.configuration["experiment"]["CameraParameters"]
+        width = int(camera_config[self.resolution_mode]["img_x_pixels"])
+        height = int(camera_config[self.resolution_mode]["img_y_pixels"])
+        if (
+            camera_config[self.model.active_microscope_name]["img_x_pixels"] != width
+            or camera_config[self.model.active_microscope_name]["img_y_pixels"] != height
+        ):
+            
+            if width != self.width or height != self.height:
+                self.data_buffer = [
+                    SharedNDArray(shape=(height, width), dtype="uint16")
+                    for _ in range(self.model.number_of_frames)
+                ]
+                self.model.data_buffer = self.data_buffer
+                print(f"***** allocate new data buffer with size ({height}, {width})")
+            
+            self.model.event_queue.put(("data_buffer", (width, height)))
+        else:
+            self.data_buffer = self.model.data_buffer
+        self.width = width
+        self.height = height
+        self.model.data_buffer = self.data_buffer
+
         # prepare new microscope
         self.model.configuration["experiment"]["MicroscopeState"][
             "microscope_name"
@@ -168,6 +191,7 @@ class ChangeResolution:
         self.model.active_microscope.prepare_next_channel()
         # resume data thread
         self.model.resume_data_thread()
+        logger.debug(f"**** Change resolution send out trigger {self.model.frame_id}")
         return True
 
     def cleanup(self):
@@ -177,6 +201,8 @@ class ChangeResolution:
         resolution change process.
         """
         self.model.resume_data_thread()
+        if self.pre_data_buffer:
+            self.model.data_buffer = self.pre_data_buffer
 
 
 class SetCameraParameters:
@@ -321,10 +347,11 @@ class UpdateExperimentSetting:
         #: dict: A dictionary defining the configuration for the resolution change
         self.config_table = {
             "signal": {"main": self.signal_func, "cleanup": self.cleanup},
-            "node": {"device_related": True},
+            "node": {"device_related": True, "need_response":True},
         }
 
         self.experiment_parameters = experiment_parameters
+        self.auto_image_writer = False
 
     def signal_func(self):
         """Perform actions to change the resolution mode and update the active
@@ -370,7 +397,7 @@ class UpdateExperimentSetting:
         # prepare channel
         self.model.active_microscope.prepare_next_channel()
         # update image writer
-        if self.model.image_writer:
+        if self.auto_image_writer and self.model.image_writer:
             z_steps = state["number_z_steps"]
             channels = sum(
                 [v["is_selected"] is True for k, v in state["channels"].items()]
@@ -386,6 +413,7 @@ class UpdateExperimentSetting:
                 logger.exception(f"Update image writer metadata failed: {e}")
         # resume data thread
         self.model.resume_data_thread()
+        logger.debug(f"***** Update setting send out trigger {self.model.frame_id}")
         return True
 
     def cleanup(self):

@@ -558,8 +558,9 @@ class SignalContainer(Container):
         if not self.curr_node:
             self.curr_node = self.root
 
-        logger.info(f"Running signal node: {self.curr_node.node_name}")
+        logger.info(f"Enter: Running signal node: {self.curr_node.node_name}")
         while self.curr_node:
+            logger.info(f"Running signal node: {self.curr_node.node_name}")
             try:
                 result, is_end = self.curr_node.run(*args, wait_response=wait_response)
             except Exception as e:
@@ -651,7 +652,9 @@ class DataContainer(Container):
             return
         if not self.curr_node:
             self.curr_node = self.root
+        logger.info(f"Enter: Running Data node: {self.curr_node.node_name}")
         while self.curr_node:
+            logger.info(f"Running Data node: {self.curr_node.node_name}")
             try:
                 result, is_end = self.curr_node.run(*args)
             except Exception:
@@ -691,6 +694,7 @@ class DataContainer(Container):
                 self.curr_node = None
                 self.end_flag = True
                 return
+            logger.info(f"Next Data node: {self.curr_node.node_name} {self.curr_node.device_related}")
 
             if self.curr_node.device_related or self.curr_node.need_response:
                 return

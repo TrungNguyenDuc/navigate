@@ -100,6 +100,8 @@ class ImageWriter:
             self.model.data_buffer if data_buffer is None else data_buffer
         )
 
+        logger.debug(f"***** Create image writer! with shape {self.model.data_buffer[0].shape}")
+
         #: int : Number of frames in the experiment.
         self.number_of_frames = self.model.number_of_frames
 
@@ -135,17 +137,6 @@ class ImageWriter:
 
         #: DataSource: Data source
         self.data_source = None
-
-        # camera flip flags
-        if self.microscope_name is None:
-            self.microscope_name = self.model.active_microscope_name
-        camera_config = self.model.configuration["configuration"]["microscopes"][
-            self.microscope_name
-        ]["camera"]
-        self.flip_flags = {
-            "x": camera_config.get("flip_x", False),
-            "y": camera_config.get("flip_y", False),
-        }
 
         #: int: Disk space check interval in seconds.
         self.disk_space_check_interval = 60
@@ -382,6 +373,17 @@ class ImageWriter:
             self.data_source.close()
             self.data_source = None
 
+        # camera flip flags
+        if self.microscope_name is None:
+            self.microscope_name = self.model.active_microscope_name
+        camera_config = self.model.configuration["configuration"]["microscopes"][
+            self.microscope_name
+        ]["camera"]
+        self.flip_flags = {
+            "x": camera_config.get("flip_x", False),
+            "y": camera_config.get("flip_y", False),
+        }
+
         self.current_time_point = 0
 
         file_name = self.get_saving_file_name(sub_dir, image_name)
@@ -413,6 +415,7 @@ class ImageWriter:
         self.data_source.set_metadata_from_configuration_experiment(
             self.model.configuration, self.microscope_name
         )
+        logger.debug(f"***** Setting new data source: {self.microscope_name}: {self.data_source.shape_y}, {self.data_source.shape_x}")
 
         self.data_source.set_metadata(self.saving_config)
 

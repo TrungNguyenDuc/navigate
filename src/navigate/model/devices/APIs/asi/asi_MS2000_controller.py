@@ -159,12 +159,11 @@ class MS2000Controller(TigerController):
         """Waits for the all motors to stop moving."""
         if not report:
             print("Waiting for device...")
-        temp = self.report
-        self.report = report
+
         busy = True
         while busy:
             busy = self.is_device_busy()
-        self.report = temp
+            time.sleep(0.002)
 
     def send_command(self, cmd: str) -> None:
         """Send a serial command to the device.

@@ -34,6 +34,8 @@
 import logging
 from typing import Any, Dict, Optional
 
+print("**** loading pyvcam and pyvcam.camera")
+
 # Third Party Imports
 from ctypes import *  # noqa
 import numpy as np
@@ -43,13 +45,14 @@ from pyvcam.camera import Camera
 # Local Imports
 from navigate.model.devices.camera.base import CameraBase
 from navigate.tools.decorators import log_initialization
+from navigate.model.devices.device_types import IntegratedDevice
 
 # Logger Setup
 p = __name__.split(".")[1]
 logger = logging.getLogger(p)
 
 @log_initialization
-class PhotometricsCamera(CameraBase):
+class PhotometricsCamera(CameraBase, IntegratedDevice):
     """Photometrics Base camera class.
 
     This class is the interface between the rest of the microscope code and the

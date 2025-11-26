@@ -427,11 +427,12 @@ class Model:
             for _ in range(self.number_of_frames)
         ]
 
-        for microscope_name in self.microscopes:
-            self.microscopes[microscope_name].update_data_buffer(
-                self.data_buffer,
-                self.number_of_frames,
-            )
+        self.active_microscope.update_data_buffer(
+            self.data_buffer,
+            self.number_of_frames,
+        )
+
+        print("***** update databuffer for active microscope:", img_width, img_height)
 
     def get_data_buffer(
         self, img_width: int = 512, img_height: int = 512
@@ -527,7 +528,9 @@ class Model:
         offset_variance_maps : Tuple[np.ndarray, np.ndarray]
             Offset variance maps.
         """
-
+        if not self.active_microscope.camera:
+            return (None, None)
+        
         return self.active_microscope.camera.get_offset_variance_maps()
 
     def run_command(
@@ -639,6 +642,8 @@ class Model:
             self.data_thread.name = f"{self.imaging_mode} Data"
             self.signal_thread.start()
             if self.is_data_thread_on:
+                if self.imaging_mode != "single":
+                    time.sleep(0.5)
                 self.data_thread.start()
 
             # TODO: virtual microscopes only work with data thread on currently.
@@ -649,7 +654,7 @@ class Model:
                         data_buffer=self.virtual_microscopes[m].data_buffer,
                         microscope_name=m,
                         sub_dir=m,
-                        saving_flags=self.data_buffer_saving_flags,
+                        saving_flags=[False]*self.number_of_frames,
                         saving_config=saving_config,
                     )
                     if self.is_save
@@ -1032,7 +1037,8 @@ class Model:
             acquired_frame_num += len(frame_ids)
 
             wait_num = self.camera_wait_iterations
-
+            self.logger.debug(f"**** Data thread get images: {self.test_data_frame_id}, {frame_ids}")
+            self.test_data_frame_id += 1
             # ImageWriter to save images
             if data_func:
                 data_func(frame_ids)
@@ -1046,7 +1052,7 @@ class Model:
                 self.data_container.run(frame_ids)
 
             # show image
-            self.logger.info(f"Sending image to the controller: {frame_ids[-1]}")
+            self.logger.info(f"Sending image to the controller: {frame_ids}")
             self.show_img_pipe.send(frame_ids[-1])
 
             if count_frame and acquired_frame_num >= num_of_frames:
@@ -1194,6 +1200,8 @@ class Model:
         self.event_queue.put(("waveform", waveform_dict))
 
         self.frame_id = 0
+        self.test_frame_id = 0
+        self.test_data_frame_id = 0
         return True
 
     def snap_image(self) -> None:
@@ -1214,30 +1222,20 @@ class Model:
         # Stash current position, channel, timepoint. Do this here, because signal
         # container functions can inject changes to the stage. NOTE: This line is
         # wildly expensive when get_stage_position() does not cache results.
-        start_time = time.perf_counter_ns()
         stage_pos = self.get_stage_position()
         self.data_buffer_positions[self.frame_id][0] = stage_pos.get("x_pos", 0)
         self.data_buffer_positions[self.frame_id][1] = stage_pos.get("y_pos", 0)
         self.data_buffer_positions[self.frame_id][2] = stage_pos.get("z_pos", 0)
         self.data_buffer_positions[self.frame_id][3] = stage_pos.get("theta_pos", 0)
         self.data_buffer_positions[self.frame_id][4] = stage_pos.get("f_pos", 0)
-        self.logger.performance(
-            json.dumps(
-                {
-                    "kind": "Stage Position",
-                    "duration_ns": time.perf_counter_ns() - start_time,
-                    "timestamp": time.time(),
-                }
-            )
-        )
 
         # Run the acquisition
-        start_time = time.perf_counter_ns()
         try:
             self.active_microscope.turn_on_laser()
             self.active_microscope.daq.run_acquisition(
                 wait_until_done=self.is_data_thread_on
             )
+            self.logger.debug(f"**** sending out trigger {self.frame_id}, {self.test_frame_id}!")
             if not self.is_data_thread_on:
                 if self.available_image_count > 0:
                     self.grab_image(getattr(self.image_writer, "save_image", None))
@@ -1261,15 +1259,6 @@ class Model:
             # Ensure the laser is turned off
             self.active_microscope.turn_off_lasers()
 
-        self.logger.performance(
-            json.dumps(
-                {
-                    "kind": "DAQ Triggers",
-                    "duration_ns": time.perf_counter_ns() - start_time,
-                    "timestamp": time.time(),
-                }
-            )
-        )
 
         self.available_image_count += 1
 
@@ -1277,6 +1266,7 @@ class Model:
             self.signal_container.run(wait_response=True)
 
         self.frame_id = (self.frame_id + 1) % self.number_of_frames
+        self.test_frame_id += 1
 
     def grab_image(self, data_func: Optional[callable] = None) -> None:
         """Grab one image from the camera.
@@ -1434,6 +1424,10 @@ class Model:
         former_microscope = self.active_microscope_name
         if resolution_value != self.active_microscope_name:
             self.get_active_microscope()
+            self.active_microscope.update_data_buffer(
+                self.data_buffer,
+                self.number_of_frames,
+            )
             self.active_microscope.move_stage_offset(former_microscope)
 
         # update zoom if possible
@@ -1571,12 +1565,12 @@ class Model:
         data_buffer : list
             List of data buffer.
         """
-        img_height = self.configuration["experiment"]["CameraParameters"][
+        img_height = int(self.configuration["experiment"]["CameraParameters"][
             microscope_name
-        ]["img_y_pixels"]
-        img_width = self.configuration["experiment"]["CameraParameters"][
+        ]["img_y_pixels"])
+        img_width = int(self.configuration["experiment"]["CameraParameters"][
             microscope_name
-        ]["img_x_pixels"]
+        ]["img_x_pixels"])
 
         # create data buffer
         data_buffer = [
@@ -1807,3 +1801,7 @@ class Model:
             return
         for id in frame_ids:
             self.data_buffer_saving_flags[id] = True
+
+    def load_cameras(self):
+        for microscope_name in self.microscopes:
+            self.microscopes[microscope_name].load_camera()

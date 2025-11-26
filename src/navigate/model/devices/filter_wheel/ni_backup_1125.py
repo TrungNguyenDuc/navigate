@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2025  The University of Texas Southwestern Medical Center.
+# Copyright (c) 2021-2024  The University of Texas Southwestern Medical Center.
 # All rights reserved.
 
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,6 @@
 import logging
 import time
 import traceback
-from typing import Any
 
 # Third Party Imports
 import nidaqmx
@@ -55,15 +54,7 @@ logger = logging.getLogger(p)
 class NIFilterWheel(FilterWheelBase, NIDevice):
     """DAQFilterWheel - Class for controlling filter wheels with a DAQ."""
 
-    filter_wheel_value = None
-
-    def __init__(
-        self,
-        microscope_name: str,
-        device_connection: Any,
-        configuration: dict[str, Any],
-        device_id: int = 0,
-    ) -> None:
+    def __init__(self, microscope_name, device_connection, configuration, device_id):
         """Initialize the DAQFilterWheel class.
 
         Parameters
@@ -84,32 +75,26 @@ class NIFilterWheel(FilterWheelBase, NIDevice):
         self.wait_until_done_delay = self.device_config["filter_wheel_delay"]
 
         self.filter_wheel_task = None
+        self._filter_value = None
 
-    def __str__(self) -> str:
+    def __str__(self):
         """String representation of the class."""
         return "DAQFilterWheel"
 
-    def __enter__(self) -> "NIFilterWheel":
-        """Enter the NI Filter Wheel context manager."""
+    def __enter__(self):
+        """Enter the ASI Filter Wheel context manager."""
         return self
 
-    def __exit__(self) -> bool:
-        """Exit the NI Filter Wheel context manager.
-
-        Returns
-        -------
-        bool
-            True if the context was exited successfully, False otherwise.
-        """
+    def __exit__(self):
+        """Exit the ASI Filter Wheel context manager."""
         if self.filter_wheel_task:
             try:
                 self.filter_wheel_task.stop()
                 self.filter_wheel_task.close()
             except Exception:
                 pass
-        return True
 
-    def set_filter(self, filter_name: str, wait_until_done: bool = True) -> None:
+    def set_filter(self, filter_name, wait_until_done=True):
         """Change the filter wheel to the filter designated by the filter
         position argument. Requires a digital port on the DAQ.
 
@@ -121,7 +106,7 @@ class NIFilterWheel(FilterWheelBase, NIDevice):
             Waits duration of time necessary for filter wheel to change positions.
         """
         if self.check_if_filter_in_filter_dictionary(filter_name) is True:
-            if type(self).filter_wheel_value == filter_name:
+            if self._filter_value == filter_name:
                 return
             try:
                 # Create the nidaqmx Task, and add the DO channel.
@@ -144,12 +129,11 @@ class NIFilterWheel(FilterWheelBase, NIDevice):
                 # Clean up the task
                 self.filter_wheel_task.stop()
                 self.filter_wheel_task.close()
+                self._filter_value = filter_name
             except DaqError as e:
                 logger.debug(e)
             except Exception as e:
-                logger.exception(f"Error setting filter: {traceback.format_exc()}")
-
-            type(self).filter_wheel_value = filter_name
+                logger.error(f"NI Set Filter Error:, {e}")
 
     def close(self) -> None:
         """Close the DAQ Filter Wheel

@@ -176,24 +176,24 @@ class SerialConnectionFactory:
             conn = auto_redial(
                 build_connection_function, args, exception=exception
             )
-            serial_conn = None
-            if type(conn) is serial.Serial:
-                serial_conn = conn
-            elif hasattr(conn, "serial"):
-                serial_conn = conn.serial
-            if serial_conn is not None:
-                serial_conn.write = performance_monitor(
-                    prefix="Serial",
-                    display_args=lambda d: f"{str(port)}-{decode_bytes(d)}"
-                )(serial_conn.write)
-                serial_conn.readline = performance_monitor(
-                    prefix="Serial",
-                    display_result=lambda s: f"{str(port)}-{s}"
-                )(serial_conn.readline)
-                serial_conn.read = performance_monitor(
-                    prefix="Serial",
-                    display_result=lambda s: f"{str(port)}-{s}"
-                )(serial_conn.read)
+            # serial_conn = None
+            # if type(conn) is serial.Serial:
+            #     serial_conn = conn
+            # elif hasattr(conn, "serial"):
+            #     serial_conn = conn.serial
+            # if serial_conn is not None:
+            #     serial_conn.write = performance_monitor(
+            #         prefix="Serial",
+            #         display_args=lambda d: f"{str(port)}-{decode_bytes(d)}"
+            #     )(serial_conn.write)
+            #     serial_conn.readline = performance_monitor(
+            #         prefix="Serial",
+            #         display_result=lambda s: f"{str(port)}-{s}"
+            #     )(serial_conn.readline)
+            #     serial_conn.read = performance_monitor(
+            #         prefix="Serial",
+            #         display_result=lambda s: f"{str(port)}-{s}"
+            #     )(serial_conn.read)
             cls._connections[str(port)] = conn
         return cls._connections[str(port)]
 

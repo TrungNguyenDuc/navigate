@@ -278,6 +278,19 @@ class Microscope:
                     for command in commands_dict:
                         self.commands[command] = (device_name, commands_dict[command])
                     continue
+                
+                if device_name == "camera":
+                    self.loading_camera_parameters = {
+                        "device_name": device_name,
+                        "is_list": is_list,
+                        "device_name_list": device_name_list,
+                        "device_ref_name": device_ref_name,
+                        "device_connection": device_connection,
+                        "name": name,
+                        "i": i,
+                        "plugin_devices": devices_dict["__plugins__"]
+                    }
+                    # continue
 
                 # LOAD AND START DEVICES
                 self.load_and_start_devices(
@@ -376,9 +389,10 @@ class Microscope:
             Number of frames to be acquired.
         """
 
-        if self.camera.is_acquiring:
+        if self.camera and self.camera.is_acquiring:
             self.camera.close_image_series()
         self.data_buffer = data_buffer
+        logger.debug(f"***** microscope update databuffer to shape: {self.data_buffer[0].shape}")
         self.number_of_frames = number_of_frames
 
     def move_stage_offset(self, former_microscope: Optional[str] = None) -> None:
@@ -446,6 +460,7 @@ class Microscope:
         self.report_camera_settings()
         # Initialize Image Series - Attaches camera buffer and start imaging
         self.camera.initialize_image_series(self.data_buffer, self.number_of_frames)
+        logger.debug("**** Camera set databuffer beginning idx to 0!!!!")
 
         # calculate all the waveform
         self.shutter.open_shutter()
@@ -550,6 +565,23 @@ class Microscope:
                 "binning"
             ],
         )
+    
+    def load_camera(self):
+        logger.debug("**** start to load camera!!!")
+        print("**** start to load camera!")
+        from navigate.model.devices.camera.photometrics import PhotometricsCamera
+        # self.load_and_start_devices(
+        #     device_name=self.loading_camera_parameters["device_name"],
+        #     is_list=self.loading_camera_parameters["is_list"],
+        #     device_name_list=self.loading_camera_parameters["device_name_list"],
+        #     device_ref_name=self.loading_camera_parameters["device_ref_name"],
+        #     device_connection=self.loading_camera_parameters["device_connection"],
+        #     name=self.loading_camera_parameters["name"],
+        #     i=self.loading_camera_parameters["i"],
+        #     plugin_devices=self.loading_camera_parameters["plugin_devices"],
+        # )
+        logger.debug(f"**** camera is loaded! {self.camera}")
+        print(f"**** camera is loaded! {self.camera}")
 
     def end_acquisition(self) -> None:
         """End the acquisition.
@@ -574,7 +606,7 @@ class Microscope:
         self.stop_stage()
         if self.central_focus is not None:
             self.move_stage({"f_abs": self.central_focus})
-        if self.camera.is_acquiring:
+        if self.camera and self.camera.is_acquiring:
             self.camera.close_image_series()
         self.shutter.close_shutter()
         for k in self.laser:
@@ -680,7 +712,10 @@ class Microscope:
         ]["sensor_mode"]
 
         if readout_mode == "Normal":
-            readout_time = self.camera.calculate_readout_time()
+            if self.camera:
+                readout_time = self.camera.calculate_readout_time()
+            else:
+                readout_time = 0
         elif self.configuration["experiment"]["CameraParameters"][self.microscope_name][
             "readout_direction"
         ] in ["Bidirectional", "Rev. Bidirectional"]:
@@ -696,18 +731,21 @@ class Microscope:
                 exposure_time = float(channel["camera_exposure_time"]) / 1000
 
                 if readout_mode == "Light-Sheet":
-                    (
-                        _,
-                        _,
-                        updated_exposure_time,
-                    ) = self.camera.calculate_light_sheet_exposure_time(
-                        exposure_time,
-                        int(
-                            self.configuration["experiment"]["CameraParameters"][
-                                self.microscope_name
-                            ]["number_of_pixels"]
-                        ),
-                    )
+                    if self.camera:
+                        (
+                            _,
+                            _,
+                            updated_exposure_time,
+                        ) = self.camera.calculate_light_sheet_exposure_time(
+                            exposure_time,
+                            int(
+                                self.configuration["experiment"]["CameraParameters"][
+                                    self.microscope_name
+                                ]["number_of_pixels"]
+                            ),
+                        )
+                    else:
+                        updated_exposure_time = exposure_time
                     if updated_exposure_time != exposure_time:
                         print(
                             f"*** Notice: The actual exposure time of the camera for "
@@ -923,7 +961,10 @@ class Microscope:
         self.ask_stage_for_position = True
 
         for stage, axes in self.stages_list:
-            stage.stop()
+            try:
+                stage.stop()
+            except:
+                pass
 
         self.central_focus = self.get_stage_position().get("f_pos", self.central_focus)
 

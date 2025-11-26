@@ -161,7 +161,7 @@ class ASIStage(StageBase, SerialDevice, IntegratedDevice):
                 self.asi_controller.disconnect_from_serial()
                 logger.debug("ASI stage connection closed")
         except (AttributeError, BaseException) as e:
-            logger.error("ASI Stage Exception", e)
+            logger.error(f"ASI Stage Exception: {e}")
             raise
 
     @classmethod
@@ -233,7 +233,7 @@ class ASIStage(StageBase, SerialDevice, IntegratedDevice):
                 else:
                     setattr(self, f"{ax}_pos", float(pos) / 10.0)
         except ASIException as e:
-            logger.exception("ASI Stage Exception", e)
+            logger.exception(f"ASI Stage Exception: {e}")
 
         return self.get_position_dict()
 
@@ -278,7 +278,7 @@ class ASIStage(StageBase, SerialDevice, IntegratedDevice):
                 f"ASI stage move axis absolute failed or is trying to move out of "
                 f"range: {e}"
             )
-            logger.exception("ASI Stage Exception", e)
+            logger.exception(f"ASI Stage Exception: {e}")
             return False
 
         if wait_until_done:
@@ -349,7 +349,7 @@ class ASIStage(StageBase, SerialDevice, IntegratedDevice):
                 f"ASI stage move axis absolute failed or is trying to move out of "
                 f"range: {e}"
             )
-            logger.exception("ASI Stage Exception", e)
+            logger.exception(f"ASI Stage Exception: {e}")
             return False
         if wait_until_done:
             self.asi_controller.wait_for_device()
@@ -362,7 +362,7 @@ class ASIStage(StageBase, SerialDevice, IntegratedDevice):
             self.asi_controller.stop()
         except ASIException as e:
             print(f"ASI stage halt command failed: {e}")
-            logger.exception("ASI Stage Exception", e)
+            logger.exception(f"ASI Stage Exception: {e}")
 
     def set_speed(self, velocity_dict=None, percent=None):
         """Set scan velocity.
@@ -521,7 +521,7 @@ class ASIStage(StageBase, SerialDevice, IntegratedDevice):
         try:
             self.asi_controller.stop_scan()
         except ASIException as e:
-            logger.exception("ASI Stage Exception", e)
+            logger.exception(f"ASI Stage Exception: {e}")
 
     def wait_until_complete(self, axis):
         try:
@@ -596,48 +596,57 @@ class MS2000Stage(ASIStage):
 
         #: object: ASI MS2000 Controller
         self.asi_controller = device_connection
-        if device_connection is not None:
-            # Set feedback alignment values
-            for ax, aa in feedback_alignment.items():
-                self.asi_controller.set_feedback_alignment(ax, aa)
-            logger.debug("ASI Stage Feedback Alignment Settings:", feedback_alignment)
-
-            # Set finishing accuracy to half of the minimum pixel size we will use
-            # pixel size is in microns, finishing accuracy is in mm
-            # TODO: check this over all microscopes sharing this stage,
-            #       not just the current one
-            finishing_accuracy = (
-                0.001
-                * min(
-                    list(
-                        configuration["configuration"]["microscopes"][microscope_name][
-                            "zoom"
-                        ]["pixel_size"].values()
-                    )
-                )
-                / 2
-            )
-            # If this is changing, the stage must be power cycled for these changes to
-            # take effect.
-            for ax in self.asi_axes.keys():
-                self.asi_controller.set_finishing_accuracy(ax, finishing_accuracy)
-                self.asi_controller.set_error(ax, 1.2 * finishing_accuracy)
-
-            # Set backlash to 0 (less accurate)
-            for ax in self.asi_axes.keys():
-                self.asi_controller.set_backlash(ax, 0.02)
-
-            # Set wheel jog speed
-            jsspd = configuration["configuration"]["microscopes"][microscope_name][
-                "stage"]["hardware"][device_id].get("jsspd", None)
-            if jsspd is not None:
-                self.asi_controller.set_jog_speed(
-                    axes=self.asi_axes, 
-                    jsspd=int(jsspd)
-                    )
-
-            # Speed optimizations - Set speed to 90% of maximum on each axis
-            self.set_speed(percent=0.9)
+        # if device_connection is not None:
+        #     # Set feedback alignment values
+        #     for ax, aa in feedback_alignment.items():
+        #         self.asi_controller.set_feedback_alignment(ax, aa)
+        #     logger.debug(f"ASI Stage Feedback Alignment Settings: {feedback_alignment}")
+        #
+        #     # Set finishing accuracy to half of the minimum pixel size we will use
+        #     # pixel size is in microns, finishing accuracy is in mm
+        #     # TODO: check this over all microscopes sharing this stage,
+        #     #       not just the current one
+        #     finishing_accuracy = (
+        #         0.001
+        #         * min(
+        #             list(
+        #                 configuration["configuration"]["microscopes"][microscope_name][
+        #                     "zoom"
+        #                 ]["pixel_size"].values()
+        #             )
+        #         )
+        #         / 2
+        #     )
+        #     # If this is changing, the stage must be power cycled for these changes to
+        #     # take effect.
+        #     for ax in self.asi_axes.keys():
+        #         self.asi_controller.set_finishing_accuracy(ax, finishing_accuracy)
+        #         self.asi_controller.set_error(ax, 1.2 * finishing_accuracy)
+        #
+        #     # Set backlash to 0 (less accurate)
+        #     for ax in self.asi_axes.keys():
+        #         self.asi_controller.set_backlash(ax, 0.02)
+        #
+        #     # Set wheel jog speed
+        #     jsspd = configuration["configuration"]["microscopes"][microscope_name][
+        #         "stage"]["hardware"][device_id].get("jsspd", None)
+        #     if jsspd is not None:
+        #         self.asi_controller.set_jog_speed(
+        #             axes=self.asi_axes,
+        #             jsspd=int(jsspd)
+        #             )
+        #
+        #     # Set wheel jog speed
+        #     jsspd = configuration["configuration"]["microscopes"][microscope_name][
+        #         "stage"]["hardware"][device_id].get("jsspd", None)
+        #     if jsspd is not None:
+        #         self.asi_controller.set_jog_speed(
+        #             axes=self.asi_axes,
+        #             jsspd=int(jsspd)
+        #             )
+        #
+        #     # Speed optimizations - Set speed to 90% of maximum on each axis
+        #     self.set_speed(percent=0.9)
 
     @classmethod
     def connect(cls, port, baudrate=115200, timeout=0.25):
@@ -711,7 +720,7 @@ class MS2000Stage(ASIStage):
                 f"ASI stage move axis absolute failed or is trying to move out of "
                 f"range: {e}"
             )
-            logger.exception("ASI Stage Exception", e)
+            logger.exception(f"ASI Stage Exception: {e}")
             return False
 
         if wait_until_done:

@@ -34,7 +34,6 @@
 import logging
 import traceback
 from typing import Any, Dict, Optional
-import time
 
 # Third Party Imports
 import nidaqmx
@@ -88,11 +87,7 @@ class NIShutter(ShutterBase):
         self.shutter_task.do_channels.add_do_chan(
             shutter_channel, line_grouping=LineGrouping.CHAN_FOR_ALL_LINES
         )
-        #self.open_shutter()
-        self.shutter_state = False
-        self.delay = configuration["configuration"]["microscopes"][
-            microscope_name
-        ]["shutter"]["hardware"].get("delay", 0.1)
+        self.open_shutter()
 
     def __del__(self):
         """Close the ShutterTTL at exit."""
@@ -107,13 +102,9 @@ class NIShutter(ShutterBase):
     def open_shutter(self):
         """Open the shutter"""
         #: bool: Shutter state
+        self.shutter_state = True
         try:
-            if not self.shutter_state:
-                self._flip()
-
-            #self.shutter_task.write([0, 1, 1, 0,0], auto_start=True)
-            
-
+            self.shutter_task.write(self.shutter_state, auto_start=True)
             logger.debug("ShutterTTL - Shutter opened")
         except nidaqmx.errors.DaqError as e:
             print(
@@ -127,11 +118,9 @@ class NIShutter(ShutterBase):
 
     def close_shutter(self):
         """Close the shutter"""
+        self.shutter_state = False
         try:
-            if self.shutter_state:
-                self._flip()
-            #self.shutter_task.write([0, 1, 1, 0,0], auto_start=True)
-            
+            self.shutter_task.write(self.shutter_state, auto_start=True)
             logger.debug("ShutterTTL - The shutter is closed")
         except nidaqmx.errors.DaqError as e:
             print(
@@ -142,18 +131,6 @@ class NIShutter(ShutterBase):
                 "different port."
             )
             logger.debug(e)
-
-    def _flip(self):
-        self.shutter_task.write(False)
-        time.sleep(0.1)
-        self.shutter_task.write(True)
-        time.sleep(0.1)
-        self.shutter_task.write(False)
-        time.sleep(0.1)
-
-        time.sleep(self.delay)
-
-        self.shutter_state = not self.shutter_state
 
     @property
     def state(self):

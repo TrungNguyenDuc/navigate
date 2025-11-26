@@ -819,6 +819,7 @@ class ChannelsTabController(GUIController):
         # not tiling on theta axis right now
         tiling_wizard = TilingWizardPopup(self.view, axes=[axis.upper() for axis in stage_axes if axis != "theta"])
         self.tiling_wizard_controller = TilingWizardController(tiling_wizard, self)
+        # self.parent_controller.model.load_cameras()
 
     @staticmethod
     def set_info(vals: Dict[str, Any], values: Dict[str, Any]) -> None:

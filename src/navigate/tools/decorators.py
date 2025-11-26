@@ -93,17 +93,17 @@ def performance_monitor(
         def wrap_func(*args, **kwargs):
             start_time = time.perf_counter_ns()
             result = func(*args, **kwargs)
-            logger.performance(
-                json.dumps(
-                    {
-                        "kind": prefix,
-                        "args": display_args(*args) if display_args else "Hidden",
-                        "result": display_result(result) if display_result else "Hidden",
-                        "duration_ns": time.perf_counter_ns() - start_time,
-                        "timestamp": time.time(),
-                    }
-                )
-            )
+            # logger.performance(
+            #     json.dumps(
+            #         {
+            #             "kind": prefix,
+            #             "args": display_args(*args) if display_args else "Hidden",
+            #             "result": display_result(result) if display_result else "Hidden",
+            #             "duration_ns": time.perf_counter_ns() - start_time,
+            #             "timestamp": time.time(),
+            #         }
+            #     )
+            # )
             return result
         return wrap_func
     return decorator

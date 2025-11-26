@@ -604,6 +604,7 @@ class CameraSettingController(GUIController):
         ideally by calling a command from the camera.
         """
         sensor_mode = self.mode_widgets["Sensor"].get()
+        readout_time = 0
 
         if sensor_mode == "Normal":
             readout_time = self.camera_setting_dict["readout_time"]

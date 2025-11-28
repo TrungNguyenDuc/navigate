@@ -1217,6 +1217,7 @@ class Model:
         None
             Completes after the image is captured and buffered.
         """
+        start_time = time.perf_counter_ns()
         if hasattr(self, "signal_container"):
             self.signal_container.run()
 

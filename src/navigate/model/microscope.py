@@ -373,7 +373,7 @@ class Microscope:
             self.stages_list.append((stage, list(device_config["axes"])))
 
         # connect daq and camera in synthetic mode
-        if is_synthetic and self.daq is not None:
+        if self.daq is not None and type(self.daq).__name__ == "SyntheticDAQ":
             self.daq.add_camera(self.microscope_name, self.camera)
 
     def update_data_buffer(
@@ -930,7 +930,17 @@ class Microscope:
         success : bool
             True if stage is successfully moved, False otherwise.
         """
-        self.ask_stage_for_position = True
+        if self.configuration["experiment"]["MicroscopeState"]["image_mode"] in (
+            "z-stack",
+            "customized",
+        ):
+            # cache stage positions in z-stack and customized modes.
+            self.ask_stage_for_position = False
+            for axis_key in pos_dict.keys():
+                axis = axis_key[: axis_key.index("_")]
+                self.ret_pos_dict[f"{axis}_pos"] = pos_dict[axis_key]
+        else:
+            self.ask_stage_for_position = True
         if len(pos_dict.keys()) == 1:
             axis_key = list(pos_dict.keys())[0]
             axis = axis_key[: axis_key.index("_")]
@@ -1117,7 +1127,7 @@ class Microscope:
         else:
             exec(
                 f"self.{device_name} = start_device(name, "
-                f"self.configuration, '{device_name}', 0, "
+                f"self.configuration, '{device_name}', -1, "
                 f"self.is_synthetic, self.daq, plugin_devices)"
             )
             self.info[device_name] = device_ref_name

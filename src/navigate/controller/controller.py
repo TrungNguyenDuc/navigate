@@ -570,7 +570,7 @@ class Controller:
 
         if (
             self.configuration["experiment"]["MicroscopeState"]["is_multiposition"]
-            and len(positions) == 0
+            and len(positions) < 2
         ):
             # Update the view and override the settings.
             self.configuration["experiment"]["MicroscopeState"][
@@ -578,7 +578,6 @@ class Controller:
             ] = False
             self.channels_tab_controller.is_multiposition_val.set(False)
 
-        # TODO: validate experiment dict
         self.channels_tab_controller.update_experiment_values()
         warning_message += self.channels_tab_controller.verify_experiment_values()
 
@@ -1477,7 +1476,8 @@ class Controller:
                 # Update the multi-position tab without appending to the list
                 update_table(
                     table=self.multiposition_tab_controller.table,
-                    pos=value,
+                    pos=value[1:],
+                    axes = value[0]
                 )
                 self.channels_tab_controller.is_multiposition_val.set(True)
 
